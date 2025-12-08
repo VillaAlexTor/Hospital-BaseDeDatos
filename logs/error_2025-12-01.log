@@ -1,0 +1,8 @@
+[2025-12-01 14:51:41] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:90 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:23:45] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:72 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:23:48] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:72 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:23:52] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:72 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:24:01] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:72 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:24:03] errno=64 | file=C:\xampp\htdocs\HOSPITAL\includes\csrf-protection.php:72 | Cannot redeclare obtener_csrf_token() (previously declared in C:\xampp\htdocs\HOSPITAL\includes\config.php:133)
+[2025-12-01 15:25:26] errno=8192 | file=C:\xampp\htdocs\HOSPITAL\modules\dashboard\index.php:139 | Function strftime() is deprecated
+[2025-12-01 15:25:38] errno=8192 | file=C:\xampp\htdocs\HOSPITAL\modules\dashboard\index.php:139 | Function strftime() is deprecated

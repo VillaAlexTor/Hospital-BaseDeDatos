@@ -1,0 +1,699 @@
+-- =====================================================
+-- SISTEMA HOSPITALARIO - BASE DE DATOS OPTIMIZADA
+-- Motor: MySQL 8.0+
+-- Codificación: UTF8MB4
+-- Versión: 2.0 - Limpia y Funcional
+-- Fecha: 2025
+-- Tablas: 36 (eliminadas 12 tablas no utilizadas)
+-- =====================================================
+
+-- Eliminar base de datos si existe y crearla nuevamente
+DROP DATABASE IF EXISTS hospital_db;
+CREATE DATABASE hospital_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE hospital_db;
+
+-- =====================================================
+-- MÓDULO 1: GESTIÓN DE PERSONAS Y ESTRUCTURA
+-- =====================================================
+
+-- Tabla: DEPARTAMENTO
+CREATE TABLE departamento (
+    id_departamento INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    ubicacion VARCHAR(100),
+    jefe_departamento INT,
+    telefono VARCHAR(20),
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_nombre (nombre),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB COMMENT='Departamentos del hospital';
+
+-- Tabla: ESPECIALIDAD
+CREATE TABLE especialidad (
+    id_especialidad INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT,
+    estado ENUM('activa', 'inactiva') DEFAULT 'activa',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_nombre (nombre),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB COMMENT='Especialidades médicas';
+
+-- Tabla: PERSONA (tabla padre)
+CREATE TABLE persona (
+    id_persona INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_documento ENUM('DNI', 'Pasaporte', 'CI', 'RUC', 'Otro') NOT NULL,
+    numero_documento VARBINARY(255) NOT NULL COMMENT 'Encriptado',
+    nombres VARBINARY(255) NOT NULL COMMENT 'Encriptado',
+    apellidos VARBINARY(255) NOT NULL COMMENT 'Encriptado',
+    fecha_nacimiento VARBINARY(255) COMMENT 'Encriptado',
+    genero ENUM('M', 'F', 'Otro', 'Prefiero no decir') NOT NULL,
+    telefono VARBINARY(255) COMMENT 'Encriptado',
+    email VARBINARY(255) COMMENT 'Encriptado',
+    direccion VARBINARY(512) COMMENT 'Encriptado',
+    ciudad VARCHAR(100),
+    pais VARCHAR(100) DEFAULT 'Bolivia',
+    foto_perfil VARCHAR(255),
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    usuario_crea INT,
+    usuario_modifica INT,
+    UNIQUE KEY unique_documento (tipo_documento, numero_documento(100)),
+    INDEX idx_estado (estado),
+    INDEX idx_ciudad (ciudad),
+    INDEX idx_fecha_registro (fecha_registro)
+) ENGINE=InnoDB COMMENT='Tabla padre para todas las personas';
+
+-- Tabla: PACIENTE
+CREATE TABLE paciente (
+    id_paciente INT PRIMARY KEY,
+    grupo_sanguineo ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
+    factor_rh ENUM('+', '-'),
+    alergias TEXT COMMENT 'Encriptado',
+    enfermedades_cronicas TEXT COMMENT 'Encriptado',
+    contacto_emergencia_nombre VARBINARY(255) COMMENT 'Encriptado',
+    contacto_emergencia_telefono VARBINARY(255) COMMENT 'Encriptado',
+    contacto_emergencia_relacion VARCHAR(50),
+    seguro_medico VARCHAR(100),
+    numero_poliza VARBINARY(255) COMMENT 'Encriptado',
+    fecha_primera_consulta DATE,
+    numero_historia_clinica VARCHAR(50) UNIQUE,
+    estado_paciente ENUM('activo', 'inactivo', 'fallecido') DEFAULT 'activo',
+    FOREIGN KEY (id_paciente) REFERENCES persona(id_persona) ON DELETE CASCADE,
+    INDEX idx_grupo_sanguineo (grupo_sanguineo),
+    INDEX idx_numero_historia (numero_historia_clinica),
+    INDEX idx_estado_paciente (estado_paciente)
+) ENGINE=InnoDB COMMENT='Información específica de pacientes';
+
+-- Tabla: PERSONAL
+CREATE TABLE personal (
+    id_personal INT PRIMARY KEY,
+    codigo_empleado VARCHAR(20) NOT NULL UNIQUE,
+    fecha_contratacion DATE NOT NULL,
+    tipo_personal ENUM('Medico', 'Enfermero', 'Administrativo', 'Laboratorio', 'Farmacia', 'Limpieza', 'Seguridad') NOT NULL,
+    id_departamento INT,
+    salario_base DECIMAL(10,2),
+    cuenta_bancaria VARBINARY(255) COMMENT 'Encriptado',
+    estado_laboral ENUM('activo', 'vacaciones', 'licencia', 'baja', 'despedido') DEFAULT 'activo',
+    fecha_baja DATE,
+    motivo_baja TEXT,
+    FOREIGN KEY (id_personal) REFERENCES persona(id_persona) ON DELETE CASCADE,
+    FOREIGN KEY (id_departamento) REFERENCES departamento(id_departamento),
+    INDEX idx_codigo_empleado (codigo_empleado),
+    INDEX idx_tipo_personal (tipo_personal),
+    INDEX idx_estado_laboral (estado_laboral),
+    INDEX idx_departamento (id_departamento)
+) ENGINE=InnoDB COMMENT='Información del personal del hospital';
+
+-- Tabla: MEDICO
+CREATE TABLE medico (
+    id_medico INT PRIMARY KEY,
+    id_especialidad INT NOT NULL,
+    numero_colegiatura VARCHAR(50) NOT NULL UNIQUE,
+    universidad VARCHAR(200),
+    anios_experiencia INT DEFAULT 0,
+    curriculum_vitae TEXT,
+    firma_digital BLOB,
+    disponible_consulta BOOLEAN DEFAULT TRUE,
+    costo_consulta DECIMAL(10,2),
+    FOREIGN KEY (id_medico) REFERENCES personal(id_personal) ON DELETE CASCADE,
+    FOREIGN KEY (id_especialidad) REFERENCES especialidad(id_especialidad),
+    INDEX idx_especialidad (id_especialidad),
+    INDEX idx_colegiatura (numero_colegiatura),
+    INDEX idx_disponible (disponible_consulta)
+) ENGINE=InnoDB COMMENT='Información específica de médicos';
+
+-- =====================================================
+-- MÓDULO 2: CITAS MÉDICAS
+-- =====================================================
+
+-- Tabla: HORARIO_MEDICO
+CREATE TABLE horario_medico (
+    id_horario INT AUTO_INCREMENT PRIMARY KEY,
+    id_medico INT NOT NULL,
+    dia_semana ENUM('Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo') NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    consultorio VARCHAR(50),
+    cupo_maximo INT DEFAULT 20,
+    duracion_cita INT DEFAULT 30 COMMENT 'Minutos por cita',
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_medico) REFERENCES medico(id_medico) ON DELETE CASCADE,
+    INDEX idx_medico_dia (id_medico, dia_semana),
+    INDEX idx_activo (activo),
+    CONSTRAINT chk_horario_valido CHECK (hora_inicio < hora_fin)
+) ENGINE=InnoDB COMMENT='Horarios de atención de médicos';
+
+-- Tabla: CITA
+CREATE TABLE cita (
+    id_cita INT AUTO_INCREMENT PRIMARY KEY,
+    id_paciente INT NOT NULL,
+    id_medico INT NOT NULL,
+    fecha_cita DATE NOT NULL,
+    hora_cita TIME NOT NULL,
+    motivo_consulta VARCHAR(500),
+    tipo_cita ENUM('Primera vez', 'Control', 'Emergencia', 'Especializada') DEFAULT 'Primera vez',
+    estado_cita ENUM('Programada', 'Confirmada', 'En espera', 'Atendida', 'Cancelada', 'No asistió') DEFAULT 'Programada',
+    observaciones TEXT,
+    consultorio VARCHAR(50),
+    recordatorio_enviado BOOLEAN DEFAULT FALSE,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    registrado_por INT,
+    fecha_cancelacion TIMESTAMP NULL,
+    motivo_cancelacion VARCHAR(500),
+    costo_cita DECIMAL(10,2),
+    FOREIGN KEY (id_paciente) REFERENCES paciente(id_paciente),
+    FOREIGN KEY (id_medico) REFERENCES medico(id_medico),
+    FOREIGN KEY (registrado_por) REFERENCES personal(id_personal),
+    INDEX idx_paciente (id_paciente),
+    INDEX idx_medico (id_medico),
+    INDEX idx_fecha_cita (fecha_cita),
+    INDEX idx_estado (estado_cita),
+    INDEX idx_fecha_hora (fecha_cita, hora_cita)
+) ENGINE=InnoDB COMMENT='Citas médicas programadas';
+
+-- =====================================================
+-- MÓDULO 3: HISTORIA CLÍNICA Y CONSULTAS
+-- =====================================================
+
+-- Tabla: HISTORIAL_CLINICO
+CREATE TABLE historial_clinico (
+    id_historial INT AUTO_INCREMENT PRIMARY KEY,
+    id_paciente INT NOT NULL UNIQUE,
+    antecedentes_personales TEXT COMMENT 'Encriptado',
+    antecedentes_familiares TEXT COMMENT 'Encriptado',
+    cirugias_previas TEXT COMMENT 'Encriptado',
+    hospitalizaciones_previas TEXT COMMENT 'Encriptado',
+    medicamentos_actuales TEXT COMMENT 'Encriptado',
+    habitos TEXT COMMENT 'Encriptado',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    actualizado_por INT,
+    FOREIGN KEY (id_paciente) REFERENCES paciente(id_paciente) ON DELETE CASCADE,
+    FOREIGN KEY (actualizado_por) REFERENCES medico(id_medico)
+) ENGINE=InnoDB COMMENT='Historial clínico de pacientes';
+
+-- Tabla: CONSULTA
+CREATE TABLE consulta (
+    id_consulta INT AUTO_INCREMENT PRIMARY KEY,
+    id_cita INT,
+    id_paciente INT NOT NULL,
+    id_medico INT NOT NULL,
+    fecha_hora_atencion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    motivo_consulta TEXT COMMENT 'Encriptado',
+    sintomas TEXT COMMENT 'Encriptado',
+    diagnostico TEXT COMMENT 'Encriptado',
+    tratamiento TEXT COMMENT 'Encriptado',
+    observaciones TEXT COMMENT 'Encriptado',
+    plan_seguimiento TEXT COMMENT 'Encriptado',
+    proxima_cita DATE,
+    presion_arterial VARCHAR(20),
+    temperatura DECIMAL(4,2),
+    peso DECIMAL(5,2),
+    altura DECIMAL(5,2),
+    frecuencia_cardiaca INT,
+    frecuencia_respiratoria INT,
+    saturacion_oxigeno INT,
+    tipo_consulta ENUM('Ambulatoria', 'Emergencia', 'Control', 'Domiciliaria') DEFAULT 'Ambulatoria',
+    estado_consulta ENUM('En proceso', 'Finalizada', 'Cancelada') DEFAULT 'En proceso',
+    duracion_minutos INT,
+    costo_consulta DECIMAL(10,2),
+    FOREIGN KEY (id_cita) REFERENCES cita(id_cita),
+    FOREIGN KEY (id_paciente) REFERENCES paciente(id_paciente),
+    FOREIGN KEY (id_medico) REFERENCES medico(id_medico),
+    INDEX idx_paciente (id_paciente),
+    INDEX idx_medico (id_medico),
+    INDEX idx_fecha (fecha_hora_atencion),
+    INDEX idx_tipo (tipo_consulta),
+    INDEX idx_estado (estado_consulta)
+) ENGINE=InnoDB COMMENT='Consultas médicas realizadas';
+
+-- Tabla: DOCUMENTO_MEDICO
+CREATE TABLE documento_medico (
+    id_documento INT AUTO_INCREMENT PRIMARY KEY,
+    id_consulta INT NOT NULL,
+    tipo_documento ENUM('Receta', 'Orden Examen', 'Certificado', 'Informe', 'Referencia', 'Constancia') NOT NULL,
+    contenido TEXT COMMENT 'Encriptado',
+    fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_validez DATE,
+    id_medico_emisor INT NOT NULL,
+    numero_documento VARCHAR(50) UNIQUE,
+    ruta_archivo VARCHAR(500),
+    firmado_digitalmente BOOLEAN DEFAULT FALSE,
+    hash_documento VARCHAR(255),
+    estado ENUM('Vigente', 'Vencido', 'Anulado') DEFAULT 'Vigente',
+    FOREIGN KEY (id_consulta) REFERENCES consulta(id_consulta),
+    FOREIGN KEY (id_medico_emisor) REFERENCES medico(id_medico),
+    INDEX idx_consulta (id_consulta),
+    INDEX idx_tipo (tipo_documento),
+    INDEX idx_fecha_emision (fecha_emision),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB COMMENT='Documentos médicos generados';
+
+-- =====================================================
+-- MÓDULO 4: RECETAS Y MEDICAMENTOS
+-- =====================================================
+
+-- Tabla: CATEGORIA_MEDICAMENTO
+CREATE TABLE categoria_medicamento (
+    id_categoria INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT,
+    requiere_control_especial BOOLEAN DEFAULT FALSE,
+    estado ENUM('activa', 'inactiva') DEFAULT 'activa',
+    INDEX idx_nombre (nombre)
+) ENGINE=InnoDB COMMENT='Categorías de medicamentos';
+
+-- Tabla: MEDICAMENTO
+CREATE TABLE medicamento (
+    id_medicamento INT AUTO_INCREMENT PRIMARY KEY,
+    codigo_medicamento VARCHAR(50) NOT NULL UNIQUE,
+    nombre_generico VARCHAR(200) NOT NULL,
+    nombre_comercial VARCHAR(200),
+    id_categoria INT NOT NULL,
+    presentacion ENUM('Tableta', 'Cápsula', 'Jarabe', 'Suspensión', 'Inyectable', 'Ampolla', 'Crema', 'Ungüento', 'Gotas', 'Spray', 'Supositorio', 'Parche') NOT NULL,
+    concentracion VARCHAR(50),
+    unidad_medida VARCHAR(20),
+    via_administracion ENUM('Oral', 'Intravenosa', 'Intramuscular', 'Subcutánea', 'Tópica', 'Oftálmica', 'Ótica', 'Nasal', 'Rectal', 'Transdérmica'),
+    laboratorio_fabricante VARCHAR(200),
+    requiere_receta BOOLEAN DEFAULT TRUE,
+    controlado BOOLEAN DEFAULT FALSE,
+    refrigeracion_requerida BOOLEAN DEFAULT FALSE,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    stock_minimo INT DEFAULT 10,
+    stock_actual INT DEFAULT 0,
+    punto_reorden INT DEFAULT 20,
+    estado ENUM('Activo', 'Descontinuado', 'Suspendido') DEFAULT 'Activo',
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_categoria) REFERENCES categoria_medicamento(id_categoria),
+    INDEX idx_codigo (codigo_medicamento),
+    INDEX idx_nombre_generico (nombre_generico),
+    INDEX idx_nombre_comercial (nombre_comercial),
+    INDEX idx_categoria (id_categoria),
+    INDEX idx_stock (stock_actual),
+    INDEX idx_estado (estado),
+    CONSTRAINT chk_stock_positivo CHECK (stock_actual >= 0)
+) ENGINE=InnoDB COMMENT='Catálogo de medicamentos';
+
+-- Tabla: RECETA_MEDICA
+CREATE TABLE receta_medica (
+    id_receta INT AUTO_INCREMENT PRIMARY KEY,
+    id_documento INT NOT NULL UNIQUE,
+    fecha_validez DATE NOT NULL,
+    estado_receta ENUM('Vigente', 'Vencida', 'Surtida parcial', 'Surtida total', 'Anulada') DEFAULT 'Vigente',
+    numero_receta VARCHAR(50) UNIQUE,
+    observaciones_farmacia TEXT,
+    FOREIGN KEY (id_documento) REFERENCES documento_medico(id_documento) ON DELETE CASCADE,
+    INDEX idx_estado (estado_receta),
+    INDEX idx_fecha_validez (fecha_validez),
+    INDEX idx_numero (numero_receta)
+) ENGINE=InnoDB COMMENT='Recetas médicas';
+
+-- Tabla: DETALLE_RECETA
+CREATE TABLE detalle_receta (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_receta INT NOT NULL,
+    id_medicamento INT NOT NULL,
+    dosis VARCHAR(100) NOT NULL,
+    frecuencia VARCHAR(100) NOT NULL COMMENT 'Cada 8 horas, 3 veces al día, etc.',
+    duracion_dias INT NOT NULL,
+    cantidad_total INT NOT NULL,
+    cantidad_surtida INT DEFAULT 0,
+    indicaciones_especiales TEXT COMMENT 'Encriptado',
+    via_administracion VARCHAR(50),
+    FOREIGN KEY (id_receta) REFERENCES receta_medica(id_receta) ON DELETE CASCADE,
+    FOREIGN KEY (id_medicamento) REFERENCES medicamento(id_medicamento),
+    INDEX idx_receta (id_receta),
+    INDEX idx_medicamento (id_medicamento),
+    CONSTRAINT chk_cantidad_valida CHECK (cantidad_total > 0),
+    CONSTRAINT chk_duracion_valida CHECK (duracion_dias > 0),
+    CONSTRAINT chk_surtido_valido CHECK (cantidad_surtida <= cantidad_total)
+) ENGINE=InnoDB COMMENT='Detalle de medicamentos en recetas';
+
+-- =====================================================
+-- MÓDULO 5: INVENTARIO
+-- =====================================================
+
+-- Tabla: MOVIMIENTO_INVENTARIO
+CREATE TABLE movimiento_inventario (
+    id_movimiento INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_movimiento ENUM('Entrada', 'Salida', 'Ajuste', 'Devolución', 'Merma', 'Vencimiento', 'Transferencia') NOT NULL,
+    id_medicamento INT NOT NULL,
+    cantidad INT NOT NULL,
+    fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    motivo VARCHAR(200) NOT NULL,
+    id_receta INT COMMENT 'Para salidas por dispensación',
+    id_usuario_registra INT NOT NULL,
+    costo_unitario DECIMAL(10,2),
+    costo_total DECIMAL(10,2),
+    stock_anterior INT NOT NULL,
+    stock_posterior INT NOT NULL,
+    observaciones TEXT,
+    numero_comprobante VARCHAR(100),
+    FOREIGN KEY (id_medicamento) REFERENCES medicamento(id_medicamento),
+    FOREIGN KEY (id_receta) REFERENCES receta_medica(id_receta),
+    INDEX idx_tipo (tipo_movimiento),
+    INDEX idx_medicamento (id_medicamento),
+    INDEX idx_fecha (fecha_hora),
+    INDEX idx_usuario (id_usuario_registra),
+    CONSTRAINT chk_cantidad_movimiento CHECK (cantidad > 0)
+) ENGINE=InnoDB COMMENT='Movimientos de inventario';
+
+-- Tabla: ALERTA_MEDICAMENTO
+CREATE TABLE alerta_medicamento (
+    id_alerta INT AUTO_INCREMENT PRIMARY KEY,
+    id_medicamento INT NOT NULL,
+    tipo_alerta ENUM('Stock bajo', 'Stock mínimo', 'Próximo a vencer', 'Vencido', 'Faltante') NOT NULL,
+    descripcion TEXT NOT NULL,
+    fecha_generacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado_alerta ENUM('Pendiente', 'En revisión', 'Atendida', 'Ignorada') DEFAULT 'Pendiente',
+    fecha_atencion TIMESTAMP NULL,
+    atendido_por INT,
+    observaciones_atencion TEXT,
+    FOREIGN KEY (id_medicamento) REFERENCES medicamento(id_medicamento),
+    FOREIGN KEY (atendido_por) REFERENCES personal(id_personal),
+    INDEX idx_medicamento (id_medicamento),
+    INDEX idx_tipo (tipo_alerta),
+    INDEX idx_estado (estado_alerta),
+    INDEX idx_fecha (fecha_generacion)
+) ENGINE=InnoDB COMMENT='Alertas de inventario';
+
+-- =====================================================
+-- MÓDULO 6: INTERNAMIENTO
+-- =====================================================
+
+-- Tabla: SALA
+CREATE TABLE sala (
+    id_sala INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    tipo_sala ENUM('General', 'UCI', 'Emergencias', 'Pediatría', 'Maternidad', 'Quirófano', 'Recuperación') NOT NULL,
+    piso INT NOT NULL,
+    capacidad_camas INT NOT NULL,
+    camas_ocupadas INT DEFAULT 0,
+    responsable_enfermeria INT,
+    estado_sala ENUM('Operativa', 'Mantenimiento', 'Cerrada') DEFAULT 'Operativa',
+    FOREIGN KEY (responsable_enfermeria) REFERENCES personal(id_personal),
+    INDEX idx_tipo (tipo_sala),
+    INDEX idx_piso (piso),
+    INDEX idx_estado (estado_sala),
+    CONSTRAINT chk_ocupacion CHECK (camas_ocupadas >= 0 AND camas_ocupadas <= capacidad_camas)
+) ENGINE=InnoDB COMMENT='Salas del hospital';
+
+-- Tabla: HABITACION
+CREATE TABLE habitacion (
+    id_habitacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_sala INT NOT NULL,
+    numero_habitacion VARCHAR(20) NOT NULL,
+    tipo_habitacion ENUM('Individual', 'Compartida', 'Suite', 'UCI') NOT NULL,
+    numero_camas INT NOT NULL,
+    camas_ocupadas INT DEFAULT 0,
+    precio_dia DECIMAL(10,2) NOT NULL,
+    tiene_bano_privado BOOLEAN DEFAULT FALSE,
+    tiene_television BOOLEAN DEFAULT FALSE,
+    tiene_aire_acondicionado BOOLEAN DEFAULT FALSE,
+    estado_habitacion ENUM('Disponible', 'Ocupada', 'Mantenimiento', 'Limpieza', 'Reservada') DEFAULT 'Disponible',
+    FOREIGN KEY (id_sala) REFERENCES sala(id_sala),
+    UNIQUE KEY unique_habitacion (id_sala, numero_habitacion),
+    INDEX idx_sala (id_sala),
+    INDEX idx_tipo (tipo_habitacion),
+    INDEX idx_estado (estado_habitacion),
+    CONSTRAINT chk_camas_habitacion CHECK (camas_ocupadas >= 0 AND camas_ocupadas <= numero_camas)
+) ENGINE=InnoDB COMMENT='Habitaciones del hospital';
+
+-- Tabla: CAMA
+CREATE TABLE cama (
+    id_cama INT AUTO_INCREMENT PRIMARY KEY,
+    id_habitacion INT NOT NULL,
+    numero_cama VARCHAR(10) NOT NULL,
+    tipo_cama ENUM('Estándar', 'Eléctrica', 'UCI', 'Pediátrica') DEFAULT 'Estándar',
+    estado_cama ENUM('Disponible', 'Ocupada', 'Mantenimiento', 'Limpieza') DEFAULT 'Disponible',
+    observaciones TEXT,
+    FOREIGN KEY (id_habitacion) REFERENCES habitacion(id_habitacion),
+    UNIQUE KEY unique_cama (id_habitacion, numero_cama),
+    INDEX idx_habitacion (id_habitacion),
+    INDEX idx_estado (estado_cama)
+) ENGINE=InnoDB COMMENT='Camas hospitalarias';
+
+-- Tabla: INTERNAMIENTO
+CREATE TABLE internamiento (
+    id_internamiento INT AUTO_INCREMENT PRIMARY KEY,
+    id_paciente INT NOT NULL,
+    id_cama INT NOT NULL,
+    id_medico_responsable INT NOT NULL,
+    fecha_ingreso DATE NOT NULL,
+    hora_ingreso TIME NOT NULL,
+    motivo_internamiento TEXT COMMENT 'Encriptado',
+    diagnostico_ingreso TEXT COMMENT 'Encriptado',
+    tipo_internamiento ENUM('Programado', 'Emergencia', 'Referencia') DEFAULT 'Programado',
+    estado_internamiento ENUM('En curso', 'Alta médica', 'Alta voluntaria', 'Referido', 'Fallecido') DEFAULT 'En curso',
+    fecha_alta DATE,
+    hora_alta TIME,
+    diagnostico_alta TEXT COMMENT 'Encriptado',
+    recomendaciones_alta TEXT COMMENT 'Encriptado',
+    pronostico VARCHAR(100),
+    dias_hospitalizacion INT,
+    costo_dia DECIMAL(10,2),
+    costo_total DECIMAL(10,2),
+    observaciones TEXT,
+    FOREIGN KEY (id_paciente) REFERENCES paciente(id_paciente),
+    FOREIGN KEY (id_cama) REFERENCES cama(id_cama),
+    FOREIGN KEY (id_medico_responsable) REFERENCES medico(id_medico),
+    INDEX idx_paciente (id_paciente),
+    INDEX idx_medico (id_medico_responsable),
+    INDEX idx_fecha_ingreso (fecha_ingreso),
+    INDEX idx_estado (estado_internamiento),
+    CONSTRAINT chk_fechas_internamiento CHECK (fecha_alta IS NULL OR fecha_alta >= fecha_ingreso)
+) ENGINE=InnoDB COMMENT='Internamientos hospitalarios';
+
+-- Tabla: EVOLUCION_MEDICA
+CREATE TABLE evolucion_medica (
+    id_evolucion INT AUTO_INCREMENT PRIMARY KEY,
+    id_internamiento INT NOT NULL,
+    fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id_medico INT NOT NULL,
+    nota_evolucion TEXT COMMENT 'Encriptado',
+    signos_vitales JSON COMMENT 'PA, FC, Temp, etc - Encriptado',
+    plan_tratamiento TEXT COMMENT 'Encriptado',
+    estudios_solicitados TEXT,
+    condicion_general ENUM('Estable', 'Delicado', 'Crítico', 'Mejoría', 'Sin cambios', 'Deterioro'),
+    FOREIGN KEY (id_internamiento) REFERENCES internamiento(id_internamiento) ON DELETE CASCADE,
+    FOREIGN KEY (id_medico) REFERENCES medico(id_medico),
+    INDEX idx_internamiento (id_internamiento),
+    INDEX idx_fecha (fecha_hora),
+    INDEX idx_medico (id_medico)
+) ENGINE=InnoDB COMMENT='Evoluciones médicas durante internamiento';
+
+-- =====================================================
+-- MÓDULO 7: TURNOS Y HORARIOS
+-- =====================================================
+
+-- Tabla: TURNO
+CREATE TABLE turno (
+    id_turno INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion TEXT,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    tipo_turno ENUM('Diurno', 'Nocturno', 'Rotativo', 'Guardia') NOT NULL,
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    INDEX idx_nombre (nombre),
+    CONSTRAINT chk_turno_valido CHECK (hora_fin > hora_inicio OR nombre = 'Guardia 24h')
+) ENGINE=InnoDB COMMENT='Turnos de trabajo';
+
+-- Tabla: ASIGNACION_TURNO
+CREATE TABLE asignacion_turno (
+    id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_personal INT NOT NULL,
+    id_turno INT NOT NULL,
+    id_departamento INT,
+    fecha DATE NOT NULL,
+    estado_asistencia ENUM('Programado', 'Cumplido', 'Falta', 'Justificada', 'Tarde', 'Permiso') DEFAULT 'Programado',
+    hora_entrada TIME,
+    hora_salida TIME,
+    observaciones TEXT,
+    registrado_por INT,
+    FOREIGN KEY (id_personal) REFERENCES personal(id_personal),
+    FOREIGN KEY (id_turno) REFERENCES turno(id_turno),
+    FOREIGN KEY (id_departamento) REFERENCES departamento(id_departamento),
+    FOREIGN KEY (registrado_por) REFERENCES personal(id_personal),
+    INDEX idx_personal (id_personal),
+    INDEX idx_fecha (fecha),
+    INDEX idx_turno (id_turno),
+    INDEX idx_estado (estado_asistencia)
+) ENGINE=InnoDB COMMENT='Asignación de turnos al personal';
+
+-- =====================================================
+-- MÓDULO 8: SEGURIDAD Y AUTENTICACIÓN
+-- =====================================================
+
+-- Tabla: ROL
+CREATE TABLE rol (
+    id_rol INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion TEXT,
+    nivel_acceso INT DEFAULT 1 COMMENT 'Nivel jerárquico de acceso',
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_nombre (nombre),
+    INDEX idx_nivel (nivel_acceso)
+) ENGINE=InnoDB COMMENT='Roles del sistema';
+
+-- Tabla: PERMISO
+CREATE TABLE permiso (
+    id_permiso INT AUTO_INCREMENT PRIMARY KEY,
+    modulo VARCHAR(100) NOT NULL,
+    accion ENUM('Crear', 'Leer', 'Actualizar', 'Eliminar', 'Ejecutar', 'Exportar', 'Imprimir') NOT NULL,
+    descripcion TEXT,
+    codigo_permiso VARCHAR(100) UNIQUE,
+    UNIQUE KEY unique_modulo_accion (modulo, accion),
+    INDEX idx_modulo (modulo)
+) ENGINE=InnoDB COMMENT='Permisos del sistema - NOTA: Actualmente se usan permisos hardcodeados en config/roles.php';
+
+-- Tabla: USUARIO
+CREATE TABLE usuario (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    id_persona INT NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL COMMENT 'SHA-256 + Salt',
+    password_salt VARCHAR(255) NOT NULL,
+    email_verificado BOOLEAN DEFAULT FALSE,
+    telefono_verificado BOOLEAN DEFAULT FALSE,
+    autenticacion_dos_factores BOOLEAN DEFAULT FALSE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultimo_acceso TIMESTAMP NULL,
+    ultima_ip VARCHAR(45),
+    intentos_fallidos INT DEFAULT 0,
+    cuenta_bloqueada BOOLEAN DEFAULT FALSE,
+    fecha_bloqueo TIMESTAMP NULL,
+    fecha_ultimo_cambio_password TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    requiere_cambio_password BOOLEAN DEFAULT TRUE,
+    token_recuperacion VARCHAR(255),
+    token_expiracion TIMESTAMP NULL,
+    estado ENUM('activo', 'inactivo', 'bloqueado', 'suspendido') DEFAULT 'activo',
+    FOREIGN KEY (id_persona) REFERENCES persona(id_persona) ON DELETE CASCADE,
+    INDEX idx_username (username),
+    INDEX idx_estado (estado),
+    INDEX idx_ultimo_acceso (ultimo_acceso)
+) ENGINE=InnoDB COMMENT='Usuarios del sistema';
+
+-- Tabla: USUARIO_ROL
+CREATE TABLE usuario_rol (
+    id_usuario INT NOT NULL,
+    id_rol INT NOT NULL,
+    fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    asignado_por INT,
+    fecha_vencimiento DATE COMMENT 'Para roles temporales',
+    estado ENUM('activo', 'vencido', 'revocado') DEFAULT 'activo',
+    PRIMARY KEY (id_usuario, id_rol),
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_rol) REFERENCES rol(id_rol) ON DELETE CASCADE,
+    FOREIGN KEY (asignado_por) REFERENCES usuario(id_usuario),
+    INDEX idx_usuario (id_usuario),
+    INDEX idx_rol (id_rol),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB COMMENT='Relación usuarios-roles';
+
+-- Tabla: SESION
+CREATE TABLE sesion (
+    id_sesion INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    token_sesion VARCHAR(255) NOT NULL UNIQUE,
+    ip_address VARCHAR(45) NOT NULL,
+    navegador VARCHAR(200),
+    sistema_operativo VARCHAR(100),
+    dispositivo VARCHAR(100),
+    ubicacion_geografica VARCHAR(200),
+    fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_ultima_actividad TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    fecha_cierre TIMESTAMP NULL,
+    duracion_minutos INT,
+    estado_sesion ENUM('Activa', 'Cerrada', 'Expirada', 'Forzada a cerrar') DEFAULT 'Activa',
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    INDEX idx_usuario (id_usuario),
+    INDEX idx_token (token_sesion),
+    INDEX idx_estado (estado_sesion),
+    INDEX idx_fecha_inicio (fecha_inicio)
+) ENGINE=InnoDB COMMENT='Sesiones de usuario';
+
+-- =====================================================
+-- MÓDULO 9: AUDITORÍA Y TRAZABILIDAD
+-- =====================================================
+
+-- Tabla: LOG_AUDITORIA
+CREATE TABLE log_auditoria (
+    id_log BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT,
+    id_sesion INT,
+    fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    accion ENUM('INSERT', 'UPDATE', 'DELETE', 'SELECT', 'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'EXECUTE', 'EXPORT') NOT NULL,
+    tabla_afectada VARCHAR(100),
+    registro_id INT,
+    valores_anteriores JSON COMMENT 'Encriptado',
+    valores_nuevos JSON COMMENT 'Encriptado',
+    ip_address VARCHAR(45),
+    navegador VARCHAR(200),
+    resultado ENUM('Éxito', 'Fallo', 'Bloqueado', 'Error') DEFAULT 'Éxito',
+    codigo_error VARCHAR(50),
+    descripcion TEXT,
+    criticidad ENUM('Baja', 'Media', 'Alta', 'Crítica') DEFAULT 'Media',
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE SET NULL,
+    FOREIGN KEY (id_sesion) REFERENCES sesion(id_sesion) ON DELETE SET NULL,
+    INDEX idx_usuario (id_usuario),
+    INDEX idx_fecha (fecha_hora),
+    INDEX idx_accion (accion),
+    INDEX idx_tabla (tabla_afectada),
+    INDEX idx_resultado (resultado),
+    INDEX idx_criticidad (criticidad)
+) ENGINE=InnoDB COMMENT='Log de auditoría completo';
+
+-- =====================================================
+-- MÓDULO 10: RESPALDOS Y RECUPERACIÓN
+-- =====================================================
+
+-- Tabla: BACKUP
+CREATE TABLE backup (
+    id_backup INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_backup ENUM('Completo', 'Incremental', 'Diferencial', 'Transaccional') NOT NULL,
+    fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_fin TIMESTAMP NULL,
+    duracion_minutos INT,
+    tamanio_mb DECIMAL(10,2),
+    ubicacion_archivo VARCHAR(500) NOT NULL,
+    hash_verificacion VARCHAR(255),
+    estado_backup ENUM('En proceso', 'Completado', 'Fallido', 'Corrupto', 'Restaurado') DEFAULT 'En proceso',
+    cifrado BOOLEAN DEFAULT TRUE,
+    comprimido BOOLEAN DEFAULT TRUE,
+    observaciones TEXT,
+    realizado_por INT,
+    FOREIGN KEY (realizado_por) REFERENCES usuario(id_usuario),
+    INDEX idx_fecha_inicio (fecha_inicio),
+    INDEX idx_tipo (tipo_backup),
+    INDEX idx_estado (estado_backup)
+) ENGINE=InnoDB COMMENT='Registro de backups';
+
+-- Tabla: RESTAURACION
+CREATE TABLE restauracion (
+    id_restauracion INT AUTO_INCREMENT PRIMARY KEY,
+    id_backup INT NOT NULL,
+    fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_fin DATETIME NULL,
+    tipo_restauracion ENUM('Completa', 'Parcial', 'Point in Time') NOT NULL,
+    tablas_restauradas TEXT,
+    registros_restaurados INT,
+    estado_restauracion ENUM('En proceso', 'Completado', 'Fallido', 'Revertido') DEFAULT 'En proceso',
+    motivo TEXT NOT NULL,
+    autorizado_por INT,
+    ejecutado_por INT,
+    observaciones TEXT,
+    FOREIGN KEY (id_backup) REFERENCES backup(id_backup),
+    FOREIGN KEY (autorizado_por) REFERENCES usuario(id_usuario),
+    FOREIGN KEY (ejecutado_por) REFERENCES usuario(id_usuario),
+    INDEX idx_fecha (fecha_inicio),
+    INDEX idx_estado (estado_restauracion)
+) ENGINE=InnoDB COMMENT='Registro de restauraciones';

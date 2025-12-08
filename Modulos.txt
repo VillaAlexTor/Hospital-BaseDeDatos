@@ -1,0 +1,105 @@
+HOSPITAL/
+|----BaseDeDatos.txt
+|----index.php
+|----diagnostico.php
+|----verificar-estados.php
+|----login.php
+|----logout.php
+|----api
+         |----auditoria.php
+         |----auth.php
+         |----backups.php
+         |----citas.php
+         |----debug-usuarios.php
+         |----pacientes.php
+         |----usuarios.php
+|----assets
+         |----js
+                 |----modules
+                           |----auditoria.js
+                           |----auth.js
+                           |----backups.js
+                           |----citas.js
+                           |----dashboard.js
+                           |----pacientes.js
+                 |----utils
+                           |----api.js
+                           |----security.js
+                           |----validation.js
+                 |----main.js
+|----backups
+                 |----Aqui se descargan los backups
+|----config
+                 |----constants.php
+                 |----database.php
+                 |----env.
+                 |----error-handler.php
+                 |----roles.php
+                 |----security.php
+|----includes
+                 |----auth-check.php
+                 |----config.php
+                 |----csrf-protection.php
+                 |----date-helper.php
+                 |----footer.php
+                 |----header.php
+                 |----security-headers.php
+                 |----sidebar.php
+|----modules
+                 |----auditoria
+                           |----exportar.php
+                           |----index.php
+                           |----ver.php
+                 |----auth
+                           |----login.php
+                           |----recovery.php
+                           |----register.php
+                 |----ayuda
+                           |----politica-privacidad.php
+                           |----terminos.php
+                 |----backups
+                           |----index.php
+                 |----citas
+                           |----editar.php
+                           |----index.php
+                           |----programar.php
+                 |----consultas-sql
+                           |----ejecutar.php
+                           |----index.php
+                 |----dashboard
+                           |----admin.php
+                           |----index.php
+                           |----medico.php
+                           |----paciente.php
+                 |----historial-clinico
+                           |----editar.php
+                           |----index.php
+                           |----ver.php
+                 |----internamiento
+                           |----evolucion.php
+                           |----habitaciones.php
+                           |----index.php
+                           |----registrar.php
+                 |----inventario
+                           |----alertas.php
+                           |----medicamentos.php
+                           |----index.php
+                           |----movimientos.php
+                 |----pacientes
+                           |----editar.php
+                           |----historial.php
+                           |----index.php
+                           |----registrar.php
+                           |----ver.php
+                 |----personal
+                           |----horarios.php
+                           |----index.php
+                           |----registrar_medico.php
+                           |----registrar.php
+                           |----turnos.php
+                 |----reportes
+                           |----estadisticas.php
+                           |----index.php
+                           |----generar.php
+                 |----usuarios
+                           |----index.php
